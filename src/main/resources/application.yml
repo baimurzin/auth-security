@@ -1,0 +1,123 @@
+server.port: 8080
+custom.base-url: "http://localhost:${server.port}"
+
+security:
+  oauth2:
+    client:
+      client-id: itlabel-core
+      client-secret: itlabel-core-secret
+      scope: read,write
+      auto-approve-scopes: '.*'
+
+facebook:
+  client:
+    clientId: 357958401617077
+    clientSecret: 73bf927005a38e3c14f9b5d232e98e38
+    accessTokenUri: https://graph.facebook.com/oauth/access_token
+    userAuthorizationUri: https://www.facebook.com/dialog/oauth
+    tokenName: oauth_token
+    authenticationScheme: query
+    clientAuthenticationScheme: form
+    pre-established-redirect-uri: /api/login/facebook
+  resource:
+    userInfoUri: https://graph.facebook.com/me
+github:
+  client:
+    clientId: 1a9eef948b63658dca89
+    clientSecret: 89cf107ab993f3bd70319e20f934327e48c2fe5f
+    accessTokenUri: https://github.com/login/oauth/access_token
+    userAuthorizationUri: https://github.com/login/oauth/authorize
+    clientAuthenticationScheme: form
+  resource:
+    userInfoUri: https://api.github.com/user
+
+
+spring:
+  # Database configuration
+  datasource:
+    name: itlabel
+    type: org.apache.tomcat.jdbc.pool.DataSource
+    # https://jdbc.postgresql.org/documentation/head/connect.html#connection-parameters
+    url: jdbc:postgresql://localhost:5432/itlabel?connectTimeout=10&socketTimeout=40
+    username: postgres
+    password: postgres
+    driverClassName: org.postgresql.Driver
+    # https://docs.spring.io/spring-boot/docs/2.0.0.M7/reference/htmlsingle/#boot-features-connect-to-production-database
+    # https://tomcat.apache.org/tomcat-8.5-doc/jdbc-pool.html#Common_Attributes
+    # https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#boot-features-connect-to-production-database
+    tomcat:
+      minIdle: 4
+      maxIdle: 8
+      maxActive: 10
+      maxWait: 60000
+      testOnBorrow: true
+      testOnConnect: true
+      testWhileIdle: true
+      timeBetweenEvictionRunsMillis: 5000
+      validationQuery: SELECT 1;
+      validationQueryTimeout: 4
+      logValidationErrors: true
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+#        dialect: org.hibernate.dialect.H2Dialect
+        use_sql_comments: true
+        format_sql: true
+        generate_statistics: true
+        temp.use_jdbc_metadata_defaults: false
+    open-in-view: false
+
+  # Enable web database access
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# Log configuration
+
+# logs the SQL statements
+log4j:
+  logger:
+    org:
+      hibernate:
+        SQL:debug
+        type:trace
+logging:
+  level:
+    org:
+      springframework:
+        web:DEBUG
+    com:
+      web:
+        oauth2:DEBUG
+
+server.tomcat.accesslog:
+  enabled: true
+  pattern: '%h %l %u %t "%r" %s %b %D'
+
+app.constants.api.loginUrl: /api/login
+
+#app:
+#  constants:
+#    api:
+#      loginUrl: /api/login
+#      logoutUrl: api/logout
+#      facebookLoginParameter: /api/login/facebook
+#      githubLoginParameter: /api/login/github
+#      gmailLoginParameter: /api/login/gmail
+#      usernameParameter: username
+#      passwordParameter: password
+#      rememberMeParameter: remember-me
+
+
+
+#management.endpoints.web.exposure.include: '*'
+#management.endpoint.health.show-details: always
+#management:
+#  server:
+#    port: 3010
+#    ssl:
+#      enabled: false
+#    add-application-context-header: false
