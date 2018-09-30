@@ -19,10 +19,10 @@ public class UserAccountDTO implements Serializable {
     private Long id;
 
     @NotEmpty
-    private String login;
+    private String email;
 
     private String avatar;
 
-    private String facebookId;
+    private String name;
 
 }

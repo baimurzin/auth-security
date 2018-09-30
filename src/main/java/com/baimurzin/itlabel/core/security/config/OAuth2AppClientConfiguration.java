@@ -1,4 +1,4 @@
-package com.baimurzin.itlabel.core.security;
+package com.baimurzin.itlabel.core.security.config;
 
 import com.baimurzin.itlabel.core.config.CustomConfig;
 import org.springframework.beans.factory.annotation.Autowired;

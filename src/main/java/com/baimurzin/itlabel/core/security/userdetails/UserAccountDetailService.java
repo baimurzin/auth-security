@@ -1,4 +1,4 @@
-package com.baimurzin.itlabel.core.security;
+package com.baimurzin.itlabel.core.security.userdetails;
 
 import com.baimurzin.itlabel.core.converter.UserAccountConverter;
 import com.baimurzin.itlabel.core.repository.UserAccountRepository;
@@ -20,6 +20,6 @@ public class UserAccountDetailService implements UserDetailsService {
         return userAccountRepository
                 .findByUsername(username)
                 .map(UserAccountConverter::convertToUserAccountDetailsDTO)
-                .orElseThrow(() -> new UsernameNotFoundException("User with login '" + username + "' not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User with email '" + username + "' not found"));
     }
 }

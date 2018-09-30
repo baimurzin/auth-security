@@ -6,6 +6,7 @@ import lombok.Data;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
+import java.util.List;
 
 
 @Table(name = "users")
@@ -22,14 +23,13 @@ public class UserAccount {
     private boolean expired;
     private boolean locked;
     private boolean enabled; // synonym to "confirmed"
+    @Column(unique = true)
     private String email;
-
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "registration_type")
-    private RegistrationType registrationType;
-
-    private String facebookId;
+//
+//    @NotNull
+//    @Enumerated(EnumType.STRING)
+//    @Column(name = "registration_type")
+//    private RegistrationType registrationType;
 
     private Date lastAccess;
 
@@ -38,20 +38,21 @@ public class UserAccount {
     @Column(name = "role")
     private UserRole role; // synonym to "authority"
 
+    @OneToMany(fetch = FetchType.EAGER)
+    private List<AuthProviderUserDetail> authProviderUserDetails;
 
     public UserAccount() { }
 
-    public UserAccount(RegistrationType creationType, String username, String password, String avatar, boolean expired, boolean locked, boolean enabled, UserRole role, String email, String facebookId) {
-        this.registrationType = creationType;
+
+    public UserAccount(String username, String password, String avatar, boolean expired, boolean locked, boolean enabled, String email, Date lastAccess, @NotNull UserRole role) {
         this.username = username;
         this.password = password;
         this.avatar = avatar;
         this.expired = expired;
         this.locked = locked;
         this.enabled = enabled;
-        this.role = role;
         this.email = email;
-        this.facebookId = facebookId;
+        this.lastAccess = lastAccess;
+        this.role = role;
     }
-
 }

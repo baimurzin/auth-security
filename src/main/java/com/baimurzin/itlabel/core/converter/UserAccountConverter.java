@@ -4,10 +4,13 @@ import com.baimurzin.itlabel.core.domain.RegistrationType;
 import com.baimurzin.itlabel.core.domain.UserAccount;
 import com.baimurzin.itlabel.core.domain.UserRole;
 import com.baimurzin.itlabel.core.dto.UserAccountDetailsDTO;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import static com.baimurzin.itlabel.core.security.filter.AuthorityUtils.getDefaultUserRole;
+import static com.baimurzin.itlabel.core.security.util.AuthorityUtils.getDefaultUserRole;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 
 public class UserAccountConverter {
 
@@ -15,15 +18,16 @@ public class UserAccountConverter {
         if (userAccount == null) { return null; }
         return new UserAccountDetailsDTO(
                 userAccount.getId(),
-                userAccount.getUsername(),
+                userAccount.getEmail(),
                 userAccount.getAvatar(),
                 userAccount.getPassword(),
                 userAccount.isExpired(),
                 userAccount.isLocked(),
                 userAccount.isEnabled(),
-                Collections.singletonList(convertRole(userAccount.getRole())),
-                userAccount.getEmail(),
-                userAccount.getFacebookId()
+                new ArrayList<GrantedAuthority>(){{
+                    add(convertRole(userAccount.getRole()));
+                }},
+                userAccount.getUsername()
         );
     }
 
@@ -32,24 +36,4 @@ public class UserAccountConverter {
         return new SimpleGrantedAuthority(role.name());
     }
 
-    public static UserAccount buildUserAccountEntityForFacebookInsert(String facebookId, String login, String maybeImageUrl) {
-        final boolean expired = false;
-        final boolean locked = false;
-        final boolean enabled = true;
-
-        final UserRole newUserRole = getDefaultUserRole();
-
-        return new UserAccount(
-                RegistrationType.FACEBOOK,
-                login,
-                null,
-                maybeImageUrl,
-                expired,
-                locked,
-                enabled,
-                newUserRole,
-                null,
-                facebookId
-        );
-    }
 }

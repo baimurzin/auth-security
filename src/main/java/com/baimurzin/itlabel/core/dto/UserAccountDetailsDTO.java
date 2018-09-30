@@ -1,19 +1,20 @@
 package com.baimurzin.itlabel.core.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 
 /**
  * Internal class for Spring Security, it shouldn't be passed to browser via Rest API
  */
-@Data
 
+@EqualsAndHashCode(callSuper = true)
+@Data
 public class UserAccountDetailsDTO extends UserAccountDTO implements UserDetails {
 
     private String password; // password hash
@@ -24,21 +25,21 @@ public class UserAccountDetailsDTO extends UserAccountDTO implements UserDetails
     private Collection<GrantedAuthority> roles = new HashSet<>();
     private String email;
 
-    public UserAccountDetailsDTO() { }
+
+    public UserAccountDetailsDTO() {}
 
     public UserAccountDetailsDTO(
             Long id,
-            String login,
+            String email,
             String avatar,
             String password,
             boolean expired,
             boolean locked,
             boolean enabled,
             Collection<GrantedAuthority> roles,
-            String email,
-            String facebookId
+            String name
     ) {
-        super(id, login, avatar, facebookId);
+        super(id, email, avatar, name);
         this.password = password;
         this.expired = expired;
         this.locked = locked;
@@ -59,7 +60,7 @@ public class UserAccountDetailsDTO extends UserAccountDTO implements UserDetails
 
     @Override
     public String getUsername() {
-        return super.getLogin();
+        return super.getEmail();
     }
 
     @Override

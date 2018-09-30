@@ -1,4 +1,4 @@
-package com.baimurzin.itlabel.core.security.filter;
+package com.baimurzin.itlabel.core.security.util;
 
 import com.baimurzin.itlabel.core.domain.UserRole;
 import org.springframework.security.core.GrantedAuthority;

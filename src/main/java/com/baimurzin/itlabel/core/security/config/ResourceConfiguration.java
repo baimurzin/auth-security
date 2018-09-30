@@ -5,15 +5,16 @@ import com.baimurzin.itlabel.core.domain.UserRole;
 import com.baimurzin.itlabel.core.security.*;
 import com.baimurzin.itlabel.core.security.checks.AppPostAuthenticationChecks;
 import com.baimurzin.itlabel.core.security.checks.AppPreAuthenticationChecks;
-import com.baimurzin.itlabel.core.security.filter.FacebookAuthoritiesExtractor;
-import com.baimurzin.itlabel.core.security.filter.ServletFilterBuilder;
+import com.baimurzin.itlabel.core.security.facebook.FacebookPrincipalExtractor;
+import com.baimurzin.itlabel.core.security.facebook.FacebookAuthoritiesExtractor;
 import com.baimurzin.itlabel.core.security.handlers.OAuth2AuthenticationSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationFailureHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationLogoutSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationSuccessHandler;
+import com.baimurzin.itlabel.core.security.userdetails.UserAccountDetailService;
+import com.baimurzin.itlabel.core.security.util.SecurityConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.UserInfoTokenServices;
@@ -21,7 +22,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.web.server.ConfigurableWebServerFactory;
 import org.springframework.boot.web.server.ErrorPage;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -38,24 +38,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.OAuth2ClientContext;
 import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientAuthenticationProcessingFilter;
-import org.springframework.security.oauth2.client.filter.OAuth2ClientContextFilter;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
-import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
-import org.springframework.security.oauth2.config.annotation.web.configuration.EnableOAuth2Client;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
-import org.springframework.web.filter.CompositeFilter;
 
 import javax.servlet.Filter;
-import java.util.ArrayList;
-import java.util.List;
 
-import static com.baimurzin.itlabel.core.security.SecurityConstants.API_LOGIN_FACEBOOK;
-import static com.baimurzin.itlabel.core.security.SecurityConstants.API_LOGOUT_URL;
+import static com.baimurzin.itlabel.core.security.util.SecurityConstants.API_LOGIN_FACEBOOK;
+import static com.baimurzin.itlabel.core.security.util.SecurityConstants.API_LOGOUT_URL;
 
 //@EnableOAuth2Client
 @EnableWebSecurity
@@ -157,16 +151,16 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
         return new RESTAuthenticationLogoutSuccessHandler(csrfTokenRepository(), objectMapper);
     }
 
-    @Configuration
-    @EnableResourceServer
-    protected static class ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
-        @Override
-        public void configure(HttpSecurity http) throws Exception {
-            // @formatter:off
-            http.antMatcher("/me").authorizeRequests().anyRequest().authenticated();
-            // @formatter:on
-        }
-    }
+//    @Configuration
+//    @EnableResourceServer
+//    protected static class ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
+//        @Override
+//        public void configure(HttpSecurity http) throws Exception {
+//            // @formatter:off
+//            http.antMatcher("/me").authorizeRequests().anyRequest().authenticated();
+//            // @formatter:on
+//        }
+//    }
 
 //    @Bean
 //    public FilterRegistrationBean<OAuth2ClientContextFilter> oauth2ClientFilterRegistration(OAuth2ClientContextFilter filter) {
@@ -211,17 +205,6 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
         facebookFilter.setAuthenticationSuccessHandler(new OAuth2AuthenticationSuccessHandler());
         return facebookFilter;
     }
-
-    @Configuration
-    protected static class ServletCustomizer {
-        @Bean
-        public WebServerFactoryCustomizer<ConfigurableWebServerFactory> customizer() {
-            return container -> {
-                container.addErrorPages(new ErrorPage(HttpStatus.UNAUTHORIZED, "/unauthenticated"));
-            };
-        }
-    }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(); // default strength is BCrypt.GENSALT_DEFAULT_LOG2_ROUNDS=10
