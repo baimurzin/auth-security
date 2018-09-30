@@ -1,11 +1,13 @@
-package com.baimurzin.itlabel.core.security;
+package com.baimurzin.itlabel.core.security.config;
 
 import com.baimurzin.itlabel.core.config.CustomConfig;
 import com.baimurzin.itlabel.core.domain.UserRole;
+import com.baimurzin.itlabel.core.security.*;
 import com.baimurzin.itlabel.core.security.checks.AppPostAuthenticationChecks;
 import com.baimurzin.itlabel.core.security.checks.AppPreAuthenticationChecks;
 import com.baimurzin.itlabel.core.security.filter.FacebookAuthoritiesExtractor;
 import com.baimurzin.itlabel.core.security.filter.ServletFilterBuilder;
+import com.baimurzin.itlabel.core.security.handlers.OAuth2AuthenticationSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationFailureHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationLogoutSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationSuccessHandler;
@@ -13,6 +15,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.UserInfoTokenServices;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.web.server.ConfigurableWebServerFactory;
 import org.springframework.boot.web.server.ErrorPage;
@@ -32,7 +36,10 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.OAuth2ClientContext;
+import org.springframework.security.oauth2.client.OAuth2RestTemplate;
+import org.springframework.security.oauth2.client.filter.OAuth2ClientAuthenticationProcessingFilter;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientContextFilter;
+import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableOAuth2Client;
@@ -47,11 +54,12 @@ import javax.servlet.Filter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.baimurzin.itlabel.core.security.SecurityConstants.API_LOGIN_FACEBOOK;
 import static com.baimurzin.itlabel.core.security.SecurityConstants.API_LOGOUT_URL;
 
-@EnableOAuth2Client
+//@EnableOAuth2Client
 @EnableWebSecurity
-@EnableAuthorizationServer
+//@EnableAuthorizationServer
 @Import(value = {OAuth2AppClientConfiguration.class})
 @Order(6)
 @Configuration
@@ -160,21 +168,48 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
         }
     }
 
+//    @Bean
+//    public FilterRegistrationBean<OAuth2ClientContextFilter> oauth2ClientFilterRegistration(OAuth2ClientContextFilter filter) {
+//        FilterRegistrationBean<OAuth2ClientContextFilter> registration = new FilterRegistrationBean<OAuth2ClientContextFilter>();
+//        registration.setFilter(filter);
+//        registration.setOrder(-100);
+//        return registration;
+//    }
+
     @Bean
-    public FilterRegistrationBean<OAuth2ClientContextFilter> oauth2ClientFilterRegistration(OAuth2ClientContextFilter filter) {
-        FilterRegistrationBean<OAuth2ClientContextFilter> registration = new FilterRegistrationBean<OAuth2ClientContextFilter>();
-        registration.setFilter(filter);
-        registration.setOrder(-100);
-        return registration;
+    @ConfigurationProperties("facebook.client")
+    public AuthorizationCodeResourceDetails facebook() {
+        AuthorizationCodeResourceDetails authorizationCodeResourceDetails = new AuthorizationCodeResourceDetails();
+        authorizationCodeResourceDetails.setPreEstablishedRedirectUri(customConfig.getBaseUrl()+API_LOGIN_FACEBOOK);
+        authorizationCodeResourceDetails.setUseCurrentUri(false);
+        return authorizationCodeResourceDetails;
+    }
+
+    @Bean
+    @ConfigurationProperties("facebook.resource")
+    public ResourceServerProperties facebookResource() {
+        return new ResourceServerProperties();
     }
 
     private Filter ssoFilter() {
-        CompositeFilter filter = new CompositeFilter();
-        List<Filter> filters = new ArrayList<>();
-        filters.add(facebookServletFilter());
-        filters.add(githubServletFilter());
-        filter.setFilters(filters);
-        return filter;
+        OAuth2ClientAuthenticationProcessingFilter facebookFilter = new OAuth2ClientAuthenticationProcessingFilter(API_LOGIN_FACEBOOK);
+        OAuth2RestTemplate facebookTemplate = new OAuth2RestTemplate(facebook(), oauth2ClientContext);
+
+
+        AuthorizationCodeAccessTokenProvider authorizationCodeAccessTokenProviderWithUrl = new AuthorizationCodeAccessTokenProvider();
+        authorizationCodeAccessTokenProviderWithUrl.setStateKeyGenerator(new StateKeyGeneratorWithRedirectUrl());
+
+        facebookTemplate.setAccessTokenProvider(authorizationCodeAccessTokenProviderWithUrl);
+        facebookFilter.setRestTemplate(facebookTemplate);
+
+        UserInfoTokenServices tokenServices = new CheckedUserInfoTokenServices(
+                facebookResource().getUserInfoUri(), facebook().getClientId(),
+                facebookPrincipalExtractor, appPreAuthenticationChecks(), appPostAuthenticationChecks());
+        tokenServices.setAuthoritiesExtractor(new FacebookAuthoritiesExtractor());
+        tokenServices.setRestTemplate(facebookTemplate);
+        facebookFilter.setTokenServices(tokenServices);
+        facebookFilter.setAuthenticationSuccessHandler(new OAuth2AuthenticationSuccessHandler());
+        return facebookFilter;
     }
 
     @Configuration
@@ -202,63 +237,4 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
         return new AppPostAuthenticationChecks();
     }
 
-    @Bean
-    @ConfigurationProperties("github")
-    public ClientResources github() {
-        return new ClientResources();
-    }
-
-    @Bean
-    @ConfigurationProperties("facebook")
-    public ClientResources facebook() {
-        return new ClientResources();
-    }
-
-    @Bean
-    @ConfigurationProperties("facebook")
-    public AuthorizationCodeResourceDetails facebookDetailClient() {
-        AuthorizationCodeResourceDetails authorizationCodeResourceDetails = new AuthorizationCodeResourceDetails();
-        authorizationCodeResourceDetails.setPreEstablishedRedirectUri(customConfig.getBaseUrl() + SecurityConstants.API_LOGIN_FACEBOOK);
-        authorizationCodeResourceDetails.setUseCurrentUri(false);
-        return authorizationCodeResourceDetails;
-    }
-
-    @Bean
-    @ConfigurationProperties("github")
-    public AuthorizationCodeResourceDetails githubDetailClient() {
-        AuthorizationCodeResourceDetails authorizationCodeResourceDetails = new AuthorizationCodeResourceDetails();
-        authorizationCodeResourceDetails.setPreEstablishedRedirectUri(customConfig.getBaseUrl() + SecurityConstants.API_LOGIN_FACEBOOK);
-        authorizationCodeResourceDetails.setUseCurrentUri(false);
-        return authorizationCodeResourceDetails;
-    }
-
-    @Bean
-    @Qualifier("facebookServletFilter")
-    public Filter facebookServletFilter() {
-        return ServletFilterBuilder.builder()
-                .clientResources(facebook())
-                .client(facebookDetailClient())
-                .authoritiesExtractor(new FacebookAuthoritiesExtractor())
-                .path(SecurityConstants.API_LOGIN_FACEBOOK)
-                .principalExtractor(facebookPrincipalExtractor)
-                .appPostAuthenticationChecks(appPostAuthenticationChecks)
-                .appPreAuthenticationChecks(appPreAuthenticationChecks)
-                .oauth2ClientContext(oauth2ClientContext)
-                .build().getFilter();
-
-    }
-
-    @Bean
-    public Filter githubServletFilter() {
-        return ServletFilterBuilder.builder()
-                .clientResources(github())
-                .client(githubDetailClient())
-                .authoritiesExtractor(new FacebookAuthoritiesExtractor())
-                .path(SecurityConstants.API_LOGIN_GITHUB)
-                .principalExtractor(facebookPrincipalExtractor)
-                .appPostAuthenticationChecks(appPostAuthenticationChecks)
-                .appPreAuthenticationChecks(appPreAuthenticationChecks)
-                .oauth2ClientContext(oauth2ClientContext)
-                .build().getFilter();
-    }
 }
