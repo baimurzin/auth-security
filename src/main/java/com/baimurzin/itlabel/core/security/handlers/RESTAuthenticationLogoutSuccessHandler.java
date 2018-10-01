@@ -18,14 +18,10 @@ import java.util.Collections;
  */
 public class RESTAuthenticationLogoutSuccessHandler implements LogoutSuccessHandler {
 
-    private final CsrfTokenRepository csrfTokenRepository;
-
     private final ObjectMapper objectMapper;
 
-    public RESTAuthenticationLogoutSuccessHandler(CsrfTokenRepository csrfTokenRepository, ObjectMapper objectMapper) {
-        Assert.notNull(csrfTokenRepository, "csrfTokenRepository cannot be null");
+    public RESTAuthenticationLogoutSuccessHandler(ObjectMapper objectMapper) {
         Assert.notNull(objectMapper, "objectMapper cannot be null");
-        this.csrfTokenRepository = csrfTokenRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -33,10 +29,6 @@ public class RESTAuthenticationLogoutSuccessHandler implements LogoutSuccessHand
     @Override
     public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         // do nothing -- it's enough to return 200 for SPA
-
-        // set new csrf token for repeating logins without page reload
-        CsrfToken csrfToken = csrfTokenRepository.generateToken(request);
-        this.csrfTokenRepository.saveToken(csrfToken, request, response);
 
         response.setContentType(MediaType.APPLICATION_JSON_UTF8_VALUE);
         objectMapper.writeValue(response.getWriter(), Collections.singletonMap("message", "you successfully logged out"));

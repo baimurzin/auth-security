@@ -1,4 +1,4 @@
-package com.baimurzin.itlabel.core.security.userdetails;
+package com.baimurzin.itlabel.core.security.service;
 
 import com.baimurzin.itlabel.core.converter.UserAccountConverter;
 import com.baimurzin.itlabel.core.repository.UserAccountRepository;
@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class UserAccountDetailService implements UserDetailsService {
@@ -16,6 +17,7 @@ public class UserAccountDetailService implements UserDetailsService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userAccountRepository
                 .findByUsername(username)

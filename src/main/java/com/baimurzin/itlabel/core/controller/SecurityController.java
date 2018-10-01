@@ -1,10 +1,14 @@
 package com.baimurzin.itlabel.core.controller;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
+import java.util.HashMap;
 
 @RestController
 public class SecurityController {
@@ -18,8 +22,10 @@ public class SecurityController {
     }
 
     @RequestMapping("/unauthenticated")
-    public String unauthenticated() {
-        return "redirect:/?error=true";
+    public ResponseEntity unauthenticated(HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new HashMap<String, Object>(){{
+            put("message", "login please");
+        }});
     }
 
 }

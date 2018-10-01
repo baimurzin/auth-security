@@ -134,9 +134,6 @@ public class FacebookPrincipalExtractor implements PrincipalExtractor {
     }
 
     private String getEmail(Map<String, Object> map) {
-        String email = (String) map.get("email");
-        Assert.hasLength(email, "facebook email cannot be null");
-        email = email.trim();
-        return email;
+        return (String) map.get("email");
     }
 }

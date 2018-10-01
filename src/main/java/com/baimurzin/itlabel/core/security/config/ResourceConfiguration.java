@@ -2,16 +2,22 @@ package com.baimurzin.itlabel.core.security.config;
 
 import com.baimurzin.itlabel.core.config.CustomConfig;
 import com.baimurzin.itlabel.core.domain.UserRole;
-import com.baimurzin.itlabel.core.security.*;
+import com.baimurzin.itlabel.core.repository.UserAccountRepository;
+import com.baimurzin.itlabel.core.security.CheckedUserInfoTokenServices;
+import com.baimurzin.itlabel.core.security.RESTAuthenticationEntryPoint;
+import com.baimurzin.itlabel.core.security.StateKeyGeneratorWithRedirectUrl;
+import com.baimurzin.itlabel.core.security.authentication.TokenAuthenticationProvider;
+import com.baimurzin.itlabel.core.security.authentication.UsernamePasswordAuthenticationProvider;
 import com.baimurzin.itlabel.core.security.checks.AppPostAuthenticationChecks;
 import com.baimurzin.itlabel.core.security.checks.AppPreAuthenticationChecks;
-import com.baimurzin.itlabel.core.security.facebook.FacebookPrincipalExtractor;
 import com.baimurzin.itlabel.core.security.facebook.FacebookAuthoritiesExtractor;
+import com.baimurzin.itlabel.core.security.facebook.FacebookPrincipalExtractor;
 import com.baimurzin.itlabel.core.security.handlers.OAuth2AuthenticationSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationFailureHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationLogoutSuccessHandler;
 import com.baimurzin.itlabel.core.security.handlers.RESTAuthenticationSuccessHandler;
-import com.baimurzin.itlabel.core.security.userdetails.UserAccountDetailService;
+import com.baimurzin.itlabel.core.security.service.AppTokenService;
+import com.baimurzin.itlabel.core.security.service.UserAccountDetailService;
 import com.baimurzin.itlabel.core.security.util.SecurityConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,20 +25,17 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointR
 import org.springframework.boot.autoconfigure.security.oauth2.resource.ResourceServerProperties;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.UserInfoTokenServices;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.web.server.ConfigurableWebServerFactory;
-import org.springframework.boot.web.server.ErrorPage;
-import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.OAuth2ClientContext;
@@ -40,8 +43,7 @@ import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.filter.OAuth2ClientAuthenticationProcessingFilter;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
 import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
-import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
-import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
+import org.springframework.security.oauth2.config.annotation.web.configuration.EnableOAuth2Client;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
@@ -51,14 +53,14 @@ import javax.servlet.Filter;
 import static com.baimurzin.itlabel.core.security.util.SecurityConstants.API_LOGIN_FACEBOOK;
 import static com.baimurzin.itlabel.core.security.util.SecurityConstants.API_LOGOUT_URL;
 
-//@EnableOAuth2Client
+@EnableOAuth2Client
 @EnableWebSecurity
 //@EnableAuthorizationServer
-@Import(value = {OAuth2AppClientConfiguration.class})
+//@Import(value = {OAuth2AppClientConfiguration.class})
 @Order(6)
 @Configuration
+@EnableGlobalMethodSecurity(securedEnabled = true)
 public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
-
 
     @Autowired
     private OAuth2ClientContext oauth2ClientContext;
@@ -68,6 +70,9 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
 
     @Autowired
     private UserAccountDetailService userAccountDetailService;
+
+    @Autowired
+    private UserAccountRepository userAccountRepository;
 
     @Autowired
     private RESTAuthenticationEntryPoint restAuthenticationEntryPoint;
@@ -81,7 +86,6 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
     @Autowired
     private RESTAuthenticationLogoutSuccessHandler restAuthenticationLogoutSuccessHandler;
 
-
     @Autowired
     private FacebookPrincipalExtractor facebookPrincipalExtractor;
 
@@ -94,29 +98,42 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.authenticationProvider(authenticationProvider());
+        auth.authenticationProvider(tokenAuthenticationProvider())
+            .authenticationProvider(usernamePasswordAuthenticationProvider());
+    }
+
+//    @Bean
+//    public AuthenticationProvider authenticationProvider() {
+//        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+//        authenticationProvider.setUserDetailsService(userAccountDetailService);
+//        authenticationProvider.setPasswordEncoder(passwordEncoder());
+//        authenticationProvider.setPreAuthenticationChecks(appPreAuthenticationChecks());
+//        authenticationProvider.setPostAuthenticationChecks(appPostAuthenticationChecks());
+//        return authenticationProvider;
+//    }
+
+    @Bean
+    public AuthenticationProvider tokenAuthenticationProvider() {
+        return new TokenAuthenticationProvider(tokenService());
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userAccountDetailService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder());
-        authenticationProvider.setPreAuthenticationChecks(appPreAuthenticationChecks());
-        authenticationProvider.setPostAuthenticationChecks(appPostAuthenticationChecks());
-        return authenticationProvider;
+    public AppTokenService tokenService() {
+        return new AppTokenService();
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         // @formatter:off
         http.antMatcher("/**").authorizeRequests()
-                .antMatchers("/", "/h2-console", "/health", "/login**", "/webjars/**", "/error**", "/static**").permitAll();
+                .antMatchers("/", "/health", "/api/login**", "/webjars/**", "/error**", "/static**").permitAll();
 
         http.authorizeRequests()
                 .antMatchers("/app**").hasAuthority(UserRole.ROLE_USER.name());
 
-        http.csrf().csrfTokenRepository(csrfTokenRepository());
+        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+        http.csrf().disable();
 
         http.exceptionHandling().authenticationEntryPoint(restAuthenticationEntryPoint);
 
@@ -142,13 +159,8 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
 
 
     @Bean
-    public CsrfTokenRepository csrfTokenRepository() {
-        return CookieCsrfTokenRepository.withHttpOnlyFalse();
-    }
-
-    @Bean
     public RESTAuthenticationLogoutSuccessHandler restAuthenticationLogoutSuccessHandler(ObjectMapper objectMapper) {
-        return new RESTAuthenticationLogoutSuccessHandler(csrfTokenRepository(), objectMapper);
+        return new RESTAuthenticationLogoutSuccessHandler(objectMapper);
     }
 
 //    @Configuration
@@ -208,6 +220,10 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(); // default strength is BCrypt.GENSALT_DEFAULT_LOG2_ROUNDS=10
+    }
+    @Bean
+    public UsernamePasswordAuthenticationProvider usernamePasswordAuthenticationProvider() {
+        return new UsernamePasswordAuthenticationProvider(userAccountRepository, tokenService());
     }
 
     @Bean
