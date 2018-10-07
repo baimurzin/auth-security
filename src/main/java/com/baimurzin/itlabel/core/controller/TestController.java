@@ -22,4 +22,9 @@ public class TestController {
         return userAccountRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + principal.getName()));
     }
+
+    @RequestMapping("/html")
+    public String getHtml() {
+        return "index";
+    }
 }

@@ -124,6 +124,9 @@ public class ResourceConfiguration extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        http
+                .requiresChannel()
+                .anyRequest().requiresSecure();
         // @formatter:off
         http.antMatcher("/**").authorizeRequests()
                 .antMatchers("/", "/health", "/api/login**", "/webjars/**", "/error**", "/static**").permitAll();
